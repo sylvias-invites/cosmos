@@ -2,6 +2,12 @@
 <html lang="cs">
 <head>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=block" rel="stylesheet">
+  <!-- Načtení moderního fontu pro datum (Montserrat) -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&display=swap" rel="stylesheet">
+  
+  <!-- Knihovna pro konfety -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Svatební pozvánka</title>
@@ -47,6 +53,43 @@
       font-weight: normal;
       text-align: center;
       z-index: 10;
+    }
+
+    /* Kontejner pro text uvnitř srdce */
+    .heart-text-container {
+      position: absolute;
+      top: 52%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 1s ease;
+      z-index: 5;
+      pointer-events: none;
+      width: 80%;
+    }
+
+    .heart-text-container.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .invite-text {
+      font-family: 'Great Vibes', cursive;
+      font-size: 2.2rem;
+      color: #ffffff;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      margin-bottom: 8px;
+    }
+
+    .date-text {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 3px;
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+      font-weight: 300;
     }
 
     #animationCanvas {
@@ -96,6 +139,13 @@
 
   <div class="scratch-screen" id="scratch-screen">
     <h1 class="main-title" id="main-title">Míša a Alex</h1>
+    
+    <!-- Text uvnitř srdce (původně skrytý) -->
+    <div class="heart-text-container" id="heart-text-container">
+      <div class="invite-text">Zveme Vás na naši svatbu</div>
+      <div class="date-text">20.07.2027</div>
+    </div>
+
     <button class="next-btn" id="next-btn" onclick="openDetails()">Vstoupit na pozvánku &rarr;</button>
   </div>
 
@@ -103,12 +153,11 @@
     const canvas = document.getElementById('animationCanvas');
     const ctx = canvas.getContext('2d');
     const nextBtn = document.getElementById('next-btn');
+    const heartTextContainer = document.getElementById('heart-text-container');
 
-    // Obrázek letadla
     const planeImage = new Image();
     planeImage.src = 'plane.png';
 
-    // Obrázek s hvězdami (upravte název souboru podle potřeby, např. 'stars.png[span_0](start_span)'[span_0](end_span))
     const starsImage = new Image();
     starsImage.src = 'stars.png';
 
@@ -119,7 +168,6 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Celý obrys srdce
     function getHeartPointFull(t, centerX, centerY, scale) {
       let heartT;
       let isLeft = true;
@@ -139,20 +187,6 @@
         x: centerX + x * scale,
         y: centerY + y * scale
       };
-    }
-
-    // Pomocná funkce pro vytvoření celé cesty srdce do paměti canvasu
-    function createHeartPath(centerX, centerY, scale) {
-      ctx.beginPath();
-      for (let i = 0; i <= 2; i += 0.005) {
-        const pt = getHeartPointFull(i, centerX, centerY, scale);
-        if (i === 0) {
-          ctx.moveTo(pt.x, pt.y);
-        } else {
-          ctx.lineTo(pt.x, pt.y);
-        }
-      }
-      ctx.closePath();
     }
 
     function getPlanePath(progress, centerX, centerY, scale) {
@@ -202,7 +236,7 @@
       ctx.translate(x, y);
       ctx.rotate(angle);
       
-      const width = 60;
+      const width = 100;
       const height = (planeImage.height / planeImage.width) * width;
       
       ctx.drawImage(planeImage, -width / 2, -height / 2, width, height);
@@ -212,20 +246,16 @@
     let progress = 0;
     const speed = 0.0022;
     let animationFinished = false;
-
-    // Paměť pro již nakreslené hvězdy uvnitř srdce, aby se po doletu pozadí neměnilo/neblikalo
     let starsCanvas = null;
 
     function getStarsPattern(centerX, centerY, scale) {
       if (starsCanvas) return starsCanvas;
       
-      // Vytvoříme offscreen canvas pro uložení oříznutého obrázku hvězd
       const offCanvas = document.createElement('canvas');
       offCanvas.width = canvas.width;
       offCanvas.height = canvas.height;
       const offCtx = offCanvas.getContext('2d');
 
-      // Ořízneme podle tvaru srdce
       offCtx.beginPath();
       for (let i = 0; i <= 2; i += 0.005) {
         const pt = getHeartPointFull(i, centerX, centerY, scale);
@@ -235,11 +265,9 @@
       offCtx.closePath();
       offCtx.clip();
 
-      // Vykreslíme obrázek s hvězdami přes celou obrazovku (ořízne se jen do srdce)
       if (starsImage.complete && starsImage.naturalWidth !== 0) {
         offCtx.drawImage(starsImage, 0, 0, canvas.width, canvas.height);
       } else {
-        // Fallback, kdyby se obrázek nenačetl (např. modrá barva)
         offCtx.fillStyle = '#4a90e2';
         offCtx.fillRect(0, 0, canvas.width, canvas.height);
       }
@@ -255,13 +283,13 @@
       const centerY = canvas.height * 0.52;
       const scale = Math.min(canvas.width, canvas.height) / 38;
 
-      // KROK A: Pokud už letadlo odletělo (progress > 1), vykreslíme vyplněné hvězdy uvnitř srdce
+      // 1. Hvězdné pozadí uvnitř srdce (objeví se po odletu letadla)
       if (progress > 1) {
         const pattern = getStarsPattern(centerX, centerY, scale);
         ctx.drawImage(pattern, 0, 0);
       }
 
-      // KROK B: Kreslení bílé čáry (obrysu), kterou letadlo vytváří
+      // 2. Obrys srdce tvořený čárou za letadlem
       ctx.beginPath();
       ctx.setLineDash([7, 7]);
       ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
@@ -284,7 +312,7 @@
 
       ctx.setLineDash([]);
 
-      // KROK C: Vykreslení letadla (pokud ještě letí)
+      // 3. Letadlo
       if (progress <= 1) {
         const pCurrent = getPlanePath(progress, centerX, centerY, scale);
         const pNext = getPlanePath(Math.min(progress + 0.005, 1), centerX, centerY, scale);
@@ -296,16 +324,21 @@
       } else if (!animationFinished) {
         animationFinished = true;
         
-        // Zobrazení tlačítka po dokončení letu
-        setTimeout(() => {
-          nextBtn.classList.add('show');
-        }, 400);
+        // Vystřelení konfet v momentě doletu letadla
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.52 }
+        });
 
-        // Zde můžete spustit i cokoliv dalšího, co chcete, aby se stalo po vykreslení srdce
+        // Zobrazení textu uvnitř srdce a spodního tlačítka
+        setTimeout(() => {
+          heartTextContainer.classList.add('show');
+          nextBtn.classList.add('show');
+        }, 300);
       }
     }
 
-    // Spustíme animaci až ve chvíli, kdy jsou oba obrázky načtené
     let imagesLoaded = 0;
     function checkImagesLoaded() {
       imagesLoaded++;
@@ -317,7 +350,6 @@
     planeImage.onload = checkImagesLoaded;
     starsImage.onload = checkImagesLoaded;
 
-    // Pojistka, kdyby obrázky byly v cache
     if (planeImage.complete) checkImagesLoaded();
     if (starsImage.complete) checkImagesLoaded();
 
