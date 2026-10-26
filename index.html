@@ -60,31 +60,6 @@
       z-index: 1;
     }
 
-    /* Kontejner pro lístek uprostřed */
-    .ticket-container {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(0.8);
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 1s ease, transform 1s ease, visibility 1s;
-      z-index: 6;
-    }
-
-    .ticket-container.show {
-      opacity: 1;
-      visibility: visible;
-      transform: translate(-50%, -50%) scale(1);
-    }
-
-    .banner-img {
-      width: 290px;
-      max-width: 80vw;
-      height: auto;
-      filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.15));
-      border-radius: 8px;
-    }
 
     /* Tlačítko dole */
     .next-btn {
@@ -124,10 +99,6 @@
   <div class="scratch-screen" id="scratch-screen">
     <h1 class="main-title" id="main-title">Míša a Alex</h1>
     
-    <!-- Lístek (původně skrytý) -->
-    <div class="ticket-container" id="ticket-container">
-      <img src="ticket.jpeg" alt="Svatební pozvánka" class="banner-img">
-    </div>
 
     <button class="next-btn" id="next-btn" onclick="openDetails()">Vstoupit na pozvánku &rarr;</button>
   </div>
@@ -278,14 +249,8 @@
         progress += speed;
         requestAnimationFrame(animate);
       } else if (!animationFinished) {
-        animationFinished = true;
-        
-        // Zobrazení lístku a tlačítka po dokončení letu
-        setTimeout(() => {
-          ticketContainer.classList.add('show');
-          nextBtn.classList.add('show');
-        }, 400);
-      }
+  animationFinished = true;
+     }
     }
 
     planeImage.onload = () => {
