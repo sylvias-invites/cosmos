@@ -58,7 +58,7 @@
     /* Kontejner pro text uvnitř srdce */
     .heart-text-container {
       position: absolute;
-      top: 52%;
+      top: 48%;
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
@@ -76,10 +76,10 @@
     }
 
     .invite-text {
-      font-family: 'Great Vibes', cursive;
+      font-family: 'Montserrat', sans-serif;
       font-size: 2.2rem;
       color: #ffffff;
-      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
       margin-bottom: 8px;
     }
 
@@ -88,7 +88,7 @@
       font-size: 1.1rem;
       letter-spacing: 3px;
       color: #ffffff;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
       font-weight: 300;
     }
 
@@ -108,7 +108,7 @@
       padding: 12px 30px;
       background-color: rgba(255, 255, 255, 0.85);
       color: #2c2c2c;
-      border: 1.5px solid #d4a373;
+      border: 1.5px solid #a855f7;
       border-radius: 30px;
       font-size: 0.95rem;
       letter-spacing: 1.5px;
@@ -138,7 +138,7 @@
   <canvas id="animationCanvas"></canvas>
 
   <div class="scratch-screen" id="scratch-screen">
-    <h1 class="main-title" id="main-title">Míša a Alex</h1>
+    <h1 class="main-title" id="main-title">Péťa & Luky</h1>
     
     <!-- Text uvnitř srdce (původně skrytý) -->
     <div class="heart-text-container" id="heart-text-container">
@@ -328,7 +328,9 @@
         confetti({
           particleCount: 80,
           spread: 70,
-          origin: { y: 0.52 }
+          origin: { y: 0.52 },
+          colors: ['#a855f7', '#c084fc', '#e879f9', '#ffffff', '#818cf8'],
+          shapes: ['circle', 'square']
         });
 
         // Zobrazení textu uvnitř srdce a spodního tlačítka
