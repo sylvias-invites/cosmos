@@ -49,7 +49,6 @@
       z-index: 10;
     }
 
-    /* Plátno pro animaci letadla a postupně kresleného srdce */
     #animationCanvas {
       position: absolute;
       top: 0;
@@ -59,7 +58,6 @@
       pointer-events: none;
       z-index: 1;
     }
-
 
     /* Tlačítko dole */
     .next-btn {
@@ -98,19 +96,21 @@
 
   <div class="scratch-screen" id="scratch-screen">
     <h1 class="main-title" id="main-title">Míša a Alex</h1>
-    
-
     <button class="next-btn" id="next-btn" onclick="openDetails()">Vstoupit na pozvánku &rarr;</button>
   </div>
 
   <script>
     const canvas = document.getElementById('animationCanvas');
     const ctx = canvas.getContext('2d');
-    const ticketContainer = document.getElementById('ticket-container');
     const nextBtn = document.getElementById('next-btn');
 
+    // Obrázek letadla
     const planeImage = new Image();
     planeImage.src = 'plane.png';
+
+    // Obrázek s hvězdami (upravte název souboru podle potřeby, např. 'stars.png[span_0](start_span)'[span_0](end_span))
+    const starsImage = new Image();
+    starsImage.src = 'stars.png';
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
@@ -119,17 +119,15 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Celý obrys srdce (t od 0 do 2: 0->1 je levá půlka shora dolů, 1->2 je pravá půlka odspodu nahoru a zpět k vrcholu)
+    // Celý obrys srdce
     function getHeartPointFull(t, centerX, centerY, scale) {
       let heartT;
       let isLeft = true;
       
       if (t <= 1) {
-        // Levá strana srdce (shora dolů)
         heartT = t * Math.PI;
         isLeft = true;
       } else {
-        // Pravá strana srdce (odspodu nahoru k vrcholu)
         heartT = (2 - t) * Math.PI;
         isLeft = false;
       }
@@ -143,10 +141,20 @@
       };
     }
 
-    // Trajektorie jednoho letadla:
-    // 1. Přílet zleva (0.0 až 0.25)
-    // 2. Kreslení celého srdce (0.25 až 0.85)
-    // 3. Odlet doprava (0.85 až 1.0)
+    // Pomocná funkce pro vytvoření celé cesty srdce do paměti canvasu
+    function createHeartPath(centerX, centerY, scale) {
+      ctx.beginPath();
+      for (let i = 0; i <= 2; i += 0.005) {
+        const pt = getHeartPointFull(i, centerX, centerY, scale);
+        if (i === 0) {
+          ctx.moveTo(pt.x, pt.y);
+        } else {
+          ctx.lineTo(pt.x, pt.y);
+        }
+      }
+      ctx.closePath();
+    }
+
     function getPlanePath(progress, centerX, centerY, scale) {
       const w = canvas.width;
       const h = canvas.height;
@@ -161,7 +169,6 @@
       const endY = h * 0.45;
 
       if (progress <= 0.25) {
-        // FÁZE 1: Přílet zleva k vrcholu srdce
         const p = progress / 0.25;
         const easeP = 1 - Math.pow(1 - p, 2);
         return {
@@ -170,7 +177,6 @@
           drawing: false
         };
       } else if (progress <= 0.85) {
-        // FÁZE 2: Kreslení celého srdce (t jde od 0 do 2)
         const p = (progress - 0.25) / 0.60;
         const pt = getHeartPointFull(p * 2, centerX, centerY, scale);
         return {
@@ -179,7 +185,6 @@
           drawing: true
         };
       } else {
-        // FÁZE 3: Odlet z vrcholu srdce doprava
         const p = (progress - 0.85) / 0.15;
         const easeP = p * p;
         return {
@@ -205,8 +210,43 @@
     }
 
     let progress = 0;
-    const speed = 0.0022; // Rychlost animace
+    const speed = 0.0022;
     let animationFinished = false;
+
+    // Paměť pro již nakreslené hvězdy uvnitř srdce, aby se po doletu pozadí neměnilo/neblikalo
+    let starsCanvas = null;
+
+    function getStarsPattern(centerX, centerY, scale) {
+      if (starsCanvas) return starsCanvas;
+      
+      // Vytvoříme offscreen canvas pro uložení oříznutého obrázku hvězd
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = canvas.width;
+      offCanvas.height = canvas.height;
+      const offCtx = offCanvas.getContext('2d');
+
+      // Ořízneme podle tvaru srdce
+      offCtx.beginPath();
+      for (let i = 0; i <= 2; i += 0.005) {
+        const pt = getHeartPointFull(i, centerX, centerY, scale);
+        if (i === 0) offCtx.moveTo(pt.x, pt.y);
+        else offCtx.lineTo(pt.x, pt.y);
+      }
+      offCtx.closePath();
+      offCtx.clip();
+
+      // Vykreslíme obrázek s hvězdami přes celou obrazovku (ořízne se jen do srdce)
+      if (starsImage.complete && starsImage.naturalWidth !== 0) {
+        offCtx.drawImage(starsImage, 0, 0, canvas.width, canvas.height);
+      } else {
+        // Fallback, kdyby se obrázek nenačetl (např. modrá barva)
+        offCtx.fillStyle = '#4a90e2';
+        offCtx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      starsCanvas = offCanvas;
+      return starsCanvas;
+    }
 
     function animate() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -215,13 +255,18 @@
       const centerY = canvas.height * 0.52;
       const scale = Math.min(canvas.width, canvas.height) / 38;
 
-      // Nastavení stylu pro bílou čárkovanou čáru (stoupu za letadlem)
+      // KROK A: Pokud už letadlo odletělo (progress > 1), vykreslíme vyplněné hvězdy uvnitř srdce
+      if (progress > 1) {
+        const pattern = getStarsPattern(centerX, centerY, scale);
+        ctx.drawImage(pattern, 0, 0);
+      }
+
+      // KROK B: Kreslení bílé čáry (obrysu), kterou letadlo vytváří
       ctx.beginPath();
       ctx.setLineDash([7, 7]);
       ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
       ctx.lineWidth = 3.5;
 
-      // Kreslení obrysu srdce podle toho, kam až letadlo doletělo ve Fázi 2
       let drawLimit = Math.min(Math.max((progress - 0.25) / 0.60, 0), 1) * 2;
       if (progress > 0.25) {
         let first = true;
@@ -237,9 +282,9 @@
         ctx.stroke();
       }
 
-      ctx.setLineDash([]); // Vypnout čárkování pro letadlo
+      ctx.setLineDash([]);
 
-      // Vykreslení letadla
+      // KROK C: Vykreslení letadla (pokud ještě letí)
       if (progress <= 1) {
         const pCurrent = getPlanePath(progress, centerX, centerY, scale);
         const pNext = getPlanePath(Math.min(progress + 0.005, 1), centerX, centerY, scale);
@@ -249,13 +294,32 @@
         progress += speed;
         requestAnimationFrame(animate);
       } else if (!animationFinished) {
-  animationFinished = true;
-     }
+        animationFinished = true;
+        
+        // Zobrazení tlačítka po dokončení letu
+        setTimeout(() => {
+          nextBtn.classList.add('show');
+        }, 400);
+
+        // Zde můžete spustit i cokoliv dalšího, co chcete, aby se stalo po vykreslení srdce
+      }
     }
 
-    planeImage.onload = () => {
-      animate();
-    };
+    // Spustíme animaci až ve chvíli, kdy jsou oba obrázky načtené
+    let imagesLoaded = 0;
+    function checkImagesLoaded() {
+      imagesLoaded++;
+      if (imagesLoaded === 2) {
+        animate();
+      }
+    }
+
+    planeImage.onload = checkImagesLoaded;
+    starsImage.onload = checkImagesLoaded;
+
+    // Pojistka, kdyby obrázky byly v cache
+    if (planeImage.complete) checkImagesLoaded();
+    if (starsImage.complete) checkImagesLoaded();
 
     function openDetails() {
       alert("Přechod na detail pozvánky...");
@@ -263,4 +327,3 @@
   </script>
 </body>
 </html>
-
